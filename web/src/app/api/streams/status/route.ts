@@ -4,6 +4,9 @@ import { VideoIntelligenceServiceClient } from '@google-cloud/video-intelligence
 import { analyzeVideoHighlights } from '@/lib/gemini';
 import { trackUsage } from '@/lib/usage';
 
+// Mark as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic';
+
 const videoClient = new VideoIntelligenceServiceClient();
 
 export async function GET(req: NextRequest) {

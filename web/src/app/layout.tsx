@@ -9,6 +9,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Stream Editor AI",
   description: "AI-powered video editing for streamers",
+  icons: {
+    icon: '/vse.png',
+    apple: '/vse.png',
+  },
 };
 
 export default function RootLayout({

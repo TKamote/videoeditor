@@ -4,6 +4,9 @@ import { gcsBucket } from '@/lib/gcs';
 import { VideoIntelligenceServiceClient } from '@google-cloud/video-intelligence';
 import { protos } from '@google-cloud/video-intelligence';
 
+// Mark as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic';
+
 const videoClient = new VideoIntelligenceServiceClient();
 
 export async function POST(req: NextRequest) {

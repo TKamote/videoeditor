@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { trackUsage } from '@/lib/usage';
 
+// Mark as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { streamId, clipIds } = await req.json();
