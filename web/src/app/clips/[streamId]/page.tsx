@@ -21,7 +21,7 @@ function ClipsReviewContent() {
 
     // Fetch stream info (only if user owns it)
     const fetchStream = async () => {
-      if (!user) return;
+      if (!user || !db) return;
       const docRef = doc(db, 'streams', streamId as string);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -37,6 +37,11 @@ function ClipsReviewContent() {
     fetchStream();
 
     // Subscribe to clips
+    if (!db) {
+      setLoading(false);
+      return;
+    }
+
     const q = query(collection(db, 'clips'), where('streamId', '==', streamId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const clipsData = snapshot.docs.map(doc => ({
@@ -51,16 +56,19 @@ function ClipsReviewContent() {
   }, [streamId, user, router]);
 
   const handleApprove = async (clipId: string) => {
+    if (!db) return;
     const clipRef = doc(db, 'clips', clipId);
     await updateDoc(clipRef, { status: 'approved' });
   };
 
   const handleReject = async (clipId: string) => {
+    if (!db) return;
     const clipRef = doc(db, 'clips', clipId);
     await updateDoc(clipRef, { status: 'rejected' });
   };
 
   const handleUpdateTimestamps = async (clipId: string, startTime: number, endTime: number) => {
+    if (!db) return;
     const clipRef = doc(db, 'clips', clipId);
     await updateDoc(clipRef, { startTime, endTime });
   };

@@ -24,6 +24,8 @@ export default function LoginPage() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    if (!auth) return;
+    
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -44,6 +46,12 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
+    if (!auth) {
+      setError('Authentication service is not available. Please refresh the page.');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
         // Login
@@ -52,7 +60,9 @@ export default function LoginPage() {
 
         if (!currentUser.emailVerified) {
           setError('Please verify your email before logging in. Check your inbox for the verification link.');
-          await auth.signOut();
+          if (auth) {
+            await auth.signOut();
+          }
           return;
         }
 

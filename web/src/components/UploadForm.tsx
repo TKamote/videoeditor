@@ -51,6 +51,12 @@ export default function UploadForm() {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
             
             // Save metadata to Firestore
+            if (!db) {
+              setError('Database is not available. Upload succeeded but metadata could not be saved.');
+              setUploading(false);
+              return;
+            }
+
             await addDoc(collection(db, 'streams'), {
               fileName: file.name,
               firebasePath: storageRef.fullPath,
