@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminStorage, adminDb } from '@/lib/firebase-admin';
 import { gcsBucket } from '@/lib/gcs';
 import { VideoIntelligenceServiceClient } from '@google-cloud/video-intelligence';
+import { protos } from '@google-cloud/video-intelligence';
 
 const videoClient = new VideoIntelligenceServiceClient();
 
@@ -39,9 +40,13 @@ export async function POST(req: NextRequest) {
       });
 
       // 2. Trigger Video Intelligence API
-      const request = {
+      const request: protos.google.cloud.videointelligence.v1.IAnnotateVideoRequest = {
         inputUri: gcsUri,
-        features: ['LABEL_DETECTION', 'SHOT_CHANGE_DETECTION', 'FACE_DETECTION'],
+        features: [
+          protos.google.cloud.videointelligence.v1.Feature.LABEL_DETECTION,
+          protos.google.cloud.videointelligence.v1.Feature.SHOT_CHANGE_DETECTION,
+          protos.google.cloud.videointelligence.v1.Feature.FACE_DETECTION,
+        ],
       };
 
       let operation: any;
