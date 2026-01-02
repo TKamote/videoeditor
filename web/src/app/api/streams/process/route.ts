@@ -44,10 +44,12 @@ export async function POST(req: NextRequest) {
         features: ['LABEL_DETECTION', 'SHOT_CHANGE_DETECTION', 'FACE_DETECTION'],
       };
 
-      let operation;
+      let operation: any;
       try {
-        [operation] = await videoClient.annotateVideo(request);
-        console.log('Video intelligence operation started:', operation.name);
+        // annotateVideo returns a Promise that resolves to an array
+        const result = await videoClient.annotateVideo(request) as any;
+        operation = Array.isArray(result) ? result[0] : result;
+        console.log('Video intelligence operation started:', operation?.name);
       } catch (viError: any) {
         console.error('Video Intelligence API error:', viError);
         await streamRef.update({ 

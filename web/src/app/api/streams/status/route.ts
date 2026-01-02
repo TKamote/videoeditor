@@ -24,9 +24,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Check Video Intelligence operation status
-    let operation;
+    let operation: any;
     try {
-      [operation] = await videoClient.checkAnnotateVideoProgress(streamData.viOperationName);
+      const result = await videoClient.checkAnnotateVideoProgress(streamData.viOperationName) as any;
+      operation = Array.isArray(result) ? result[0] : result;
     } catch (viError: any) {
       console.error('Error checking Video Intelligence status:', viError);
       await streamRef.update({ 
