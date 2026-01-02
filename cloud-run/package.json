@@ -1,0 +1,17 @@
+{
+  "name": "ffmpeg-worker",
+  "version": "1.0.0",
+  "description": "FFmpeg worker for video editing",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "fluent-ffmpeg": "^2.1.3",
+    "@google-cloud/storage": "^7.11.0",
+    "firebase-admin": "^12.1.0",
+    "axios": "^1.6.8"
+  }
+}
+
