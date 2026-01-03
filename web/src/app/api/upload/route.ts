@@ -23,9 +23,12 @@ export async function POST(req: NextRequest) {
 
     // Upload to Firebase Storage
     const fileName = `uploads/${Date.now()}_${file.name}`;
+    
+    // Use the Firebase Storage bucket (videoeditor-2508b)
     const bucket = adminStorage.bucket('videoeditor-2508b.firebasestorage.app');
     const fileRef = bucket.file(fileName);
 
+    // Upload the file
     await fileRef.save(buffer, {
       metadata: {
         contentType: file.type,
@@ -34,12 +37,13 @@ export async function POST(req: NextRequest) {
           originalName: file.name,
         },
       },
+      public: false, // Keep private, use signed URLs
     });
 
     // Get download URL (signed URL for 1 year)
     const [downloadURL] = await fileRef.getSignedUrl({
       action: 'read',
-      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+      expires: '03-01-2500', // Far future date
     });
 
     return NextResponse.json({
@@ -50,9 +54,23 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Upload error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      response: error.response?.data,
+      stack: error.stack,
+    });
+    
+    // Return proper JSON error response
+    const statusCode = error.code === 'PERMISSION_DENIED' || error.code === 403 ? 403 : 500;
     return NextResponse.json(
-      { error: error.message || 'Upload failed' },
-      { status: 500 }
+      { 
+        error: error.message || 'Upload failed',
+        code: error.code || 'UNKNOWN_ERROR',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
+      { status: statusCode }
     );
   }
 }
