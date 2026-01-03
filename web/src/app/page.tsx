@@ -19,11 +19,10 @@ function HomeContent() {
 
     try {
       // Only show streams for the current user
-      // Note: orderBy removed temporarily - requires Firestore index
-      // Click the link in error message to create index, or add orderBy back after index is created
       const q = query(
         collection(db, 'streams'),
-        where('userId', '==', user.uid)
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const streamsData = snapshot.docs.map(doc => ({
