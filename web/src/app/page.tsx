@@ -219,8 +219,35 @@ function HomeContent() {
                         </div>
                       )}
                       {stream.status === 'error' && (
-                        <div className="text-xs text-red-600 dark:text-red-400 max-w-xs truncate" title={stream.error}>
-                          {stream.error || 'An error occurred'}
+                        <div className="flex flex-col gap-2 items-end sm:items-start">
+                          <div className="text-xs text-red-600 dark:text-red-400 max-w-xs" title={stream.error}>
+                            {stream.error || 'An error occurred'}
+                          </div>
+                          <button 
+                            onClick={async () => {
+                              // Reset status to 'uploaded' to allow retry
+                              try {
+                                const { db } = await import('@/lib/firebase');
+                                if (db) {
+                                  const { doc, updateDoc } = await import('firebase/firestore');
+                                  const streamRef = doc(db, 'streams', stream.id);
+                                  await updateDoc(streamRef, { 
+                                    status: 'uploaded',
+                                    error: null 
+                                  });
+                                  // Then start processing
+                                  startProcessing(stream.id);
+                                }
+                              } catch (err) {
+                                console.error('Failed to reset stream status:', err);
+                                // Try processing anyway
+                                startProcessing(stream.id);
+                              }
+                            }}
+                            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-bold transition-colors"
+                          >
+                            Retry Process AI
+                          </button>
                         </div>
                       )}
                     </div>
