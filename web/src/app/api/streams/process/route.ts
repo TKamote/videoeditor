@@ -55,9 +55,37 @@ export async function POST(req: NextRequest) {
       const firebaseFile = firebaseBucket.file(firebasePath);
       
       const gcsFileName = `streams/${streamId}_${streamData?.fileName}`;
-      const gcsFile = gcsBucket.file(gcsFileName);
+      
+      // Get bucket name from environment
+      const bucketName = process.env.GCS_BUCKET_NAME;
+      if (!bucketName) {
+        throw new Error('GCS_BUCKET_NAME environment variable is not set');
+      }
+      
+      // Create GCS file reference directly using Storage client
+      const { Storage } = await import('@google-cloud/storage');
+      const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+      const clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
+      const privateKey = process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      
+      if (!projectId || !clientEmail || !privateKey) {
+        throw new Error('Google Cloud Storage credentials are missing');
+      }
+      
+      const storage = new Storage({
+        projectId,
+        credentials: {
+          client_email: clientEmail,
+          private_key: privateKey,
+        },
+      });
+      const gcsBucketInstance = storage.bucket(bucketName);
+      const gcsFile = gcsBucketInstance.file(gcsFileName);
 
       console.log(`Copying from Firebase: ${firebasePath} to GCS: ${gcsFileName}`);
+      console.log(`GCS bucket: ${bucketName}, file path: ${gcsFileName}`);
+      console.log(`GCS file name: ${gcsFile.name}`);
+      
       try {
         await firebaseFile.copy(gcsFile);
         console.log('File copy successful');
@@ -65,7 +93,7 @@ export async function POST(req: NextRequest) {
         console.error('File copy failed:', copyError);
         throw new Error(`File copy failed: ${copyError.message}`);
       }
-      const gcsUri = `gs://${gcsBucket.name}/${gcsFileName}`;
+      const gcsUri = `gs://${bucketName}/${gcsFileName}`;
 
       await streamRef.update({
         status: 'processing',
