@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { storage, db } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth';
 
@@ -23,8 +22,13 @@ export default function UploadForm() {
   const handleUpload = async () => {
     if (!file) return;
 
-    if (!storage || !db) {
-      setError('Firebase is not configured. Please set up your environment variables.');
+    if (!db) {
+      setError('Database is not available.');
+      return;
+    }
+
+    if (!user?.uid) {
+      setError('Please log in to upload files.');
       return;
     }
 
@@ -32,54 +36,40 @@ export default function UploadForm() {
     setError(null);
     
     try {
-      const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      // Upload via API route to avoid CORS issues
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', user.uid);
 
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setProgress(progress);
-        },
-        (uploadError) => {
-          console.error("Upload error:", uploadError);
-          setError(`Upload failed: ${uploadError.message}`);
-          setUploading(false);
-        },
-        async () => {
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            
-            // Save metadata to Firestore
-            if (!db) {
-              setError('Database is not available. Upload succeeded but metadata could not be saved.');
-              setUploading(false);
-              return;
-            }
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-            await addDoc(collection(db, 'streams'), {
-              fileName: file.name,
-              firebasePath: storageRef.fullPath,
-              downloadUrl: downloadURL,
-              status: 'uploaded',
-              userId: user?.uid || 'unknown',
-              createdAt: serverTimestamp(),
-            });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
 
-            setUploading(false);
-            setFile(null);
-            setProgress(0);
-            alert('Upload successful! Click "Process AI" to start analysis.');
-          } catch (dbError: any) {
-            console.error("Database error:", dbError);
-            setError(`Upload succeeded but failed to save metadata: ${dbError.message}`);
-            setUploading(false);
-          }
-        }
-      );
+      const data = await response.json();
+
+      // Save metadata to Firestore
+      await addDoc(collection(db, 'streams'), {
+        fileName: file.name,
+        firebasePath: data.firebasePath,
+        downloadUrl: data.downloadURL,
+        status: 'uploaded',
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+
+      setUploading(false);
+      setFile(null);
+      setProgress(0);
+      alert('Upload successful! Click "Process AI" to start analysis.');
     } catch (error: any) {
-      console.error("Upload initialization error:", error);
-      setError(`Failed to start upload: ${error.message}`);
+      console.error("Upload error:", error);
+      setError(`Upload failed: ${error.message}`);
       setUploading(false);
     }
   };
