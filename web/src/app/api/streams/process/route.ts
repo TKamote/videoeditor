@@ -7,11 +7,30 @@ import { protos } from '@google-cloud/video-intelligence';
 // Mark as dynamic to prevent build-time analysis
 export const dynamic = 'force-dynamic';
 
-const videoClient = new VideoIntelligenceServiceClient();
+// Initialize Video Intelligence client lazily
+let videoClient: VideoIntelligenceServiceClient | null = null;
+
+function getVideoClient(): VideoIntelligenceServiceClient {
+  if (!videoClient) {
+    try {
+      videoClient = new VideoIntelligenceServiceClient();
+    } catch (error) {
+      console.error('Failed to initialize Video Intelligence client:', error);
+      throw new Error('Video Intelligence API client initialization failed');
+    }
+  }
+  return videoClient;
+}
 
 export async function POST(req: NextRequest) {
+  let streamId: string | undefined;
   try {
-    const { streamId } = await req.json();
+    const body = await req.json();
+    streamId = body.streamId;
+
+    if (!streamId) {
+      return NextResponse.json({ error: 'streamId is required' }, { status: 400 });
+    }
 
     const streamRef = adminDb.collection('streams').doc(streamId);
     const streamDoc = await streamRef.get();
@@ -30,10 +49,15 @@ export async function POST(req: NextRequest) {
 
     try {
       // 1. Transfer from Firebase Storage to GCS
-      const firebaseFile = adminStorage.bucket().file(firebasePath);
+      // Firebase Storage bucket name
+      const firebaseStorageBucket = 'videoeditor-2508b.firebasestorage.app';
+      const firebaseBucket = adminStorage.bucket(firebaseStorageBucket);
+      const firebaseFile = firebaseBucket.file(firebasePath);
+      
       const gcsFileName = `streams/${streamId}_${streamData?.fileName}`;
       const gcsFile = gcsBucket.file(gcsFileName);
 
+      console.log(`Copying from Firebase: ${firebasePath} to GCS: ${gcsFileName}`);
       await firebaseFile.copy(gcsFile);
       const gcsUri = `gs://${gcsBucket.name}/${gcsFileName}`;
 
@@ -54,8 +78,9 @@ export async function POST(req: NextRequest) {
 
       let operation: any;
       try {
+        const client = getVideoClient();
         // annotateVideo returns a Promise that resolves to an array
-        const result = await videoClient.annotateVideo(request) as any;
+        const result = await client.annotateVideo(request) as any;
         operation = Array.isArray(result) ? result[0] : result;
         console.log('Video intelligence operation started:', operation?.name);
       } catch (viError: any) {
@@ -101,19 +126,25 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Error processing stream:', error);
+    console.error('Error stack:', error.stack);
+    
     // Try to update stream status if we have streamId
-    try {
-      const { streamId } = await req.json();
-      if (streamId) {
+    if (streamId) {
+      try {
         const streamRef = adminDb.collection('streams').doc(streamId);
-        await streamRef.update({ status: 'error', error: error.message });
+        await streamRef.update({ 
+          status: 'error', 
+          error: error.message || 'Unknown error occurred' 
+        });
+      } catch (updateError) {
+        console.error('Failed to update stream status:', updateError);
       }
-    } catch (updateError) {
-      // Ignore update errors if we can't update
     }
+    
     return NextResponse.json({ 
       error: 'Internal server error', 
-      details: error.message 
+      details: error.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }
