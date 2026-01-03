@@ -58,7 +58,13 @@ export async function POST(req: NextRequest) {
       const gcsFile = gcsBucket.file(gcsFileName);
 
       console.log(`Copying from Firebase: ${firebasePath} to GCS: ${gcsFileName}`);
-      await firebaseFile.copy(gcsFile);
+      try {
+        await firebaseFile.copy(gcsFile);
+        console.log('File copy successful');
+      } catch (copyError: any) {
+        console.error('File copy failed:', copyError);
+        throw new Error(`File copy failed: ${copyError.message}`);
+      }
       const gcsUri = `gs://${gcsBucket.name}/${gcsFileName}`;
 
       await streamRef.update({
@@ -78,7 +84,9 @@ export async function POST(req: NextRequest) {
 
       let operation: any;
       try {
+        console.log('Initializing Video Intelligence client...');
         const client = getVideoClient();
+        console.log('Calling Video Intelligence API with URI:', gcsUri);
         // annotateVideo returns a Promise that resolves to an array
         const result = await client.annotateVideo(request) as any;
         operation = Array.isArray(result) ? result[0] : result;
