@@ -32,7 +32,7 @@ function HomeContent() {
         setStreams(streamsData);
       }, (error) => {
         console.error('Firestore error:', error);
-        setFirebaseError('Error connecting to database. Please check your Firebase configuration.');
+        setFirebaseError(`Database error: ${error.message}. Check Firestore security rules.`);
       });
 
       return () => unsubscribe();
@@ -132,7 +132,7 @@ function HomeContent() {
             ⚠️ {firebaseError}
           </p>
           <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
-            Create a <code className="bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">.env.local</code> file in the <code className="bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">web/</code> directory with your Firebase configuration.
+            Check your browser console for details. This is usually a Firestore security rules issue.
           </p>
         </div>
       )}
