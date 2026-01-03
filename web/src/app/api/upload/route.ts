@@ -5,6 +5,14 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if Firebase Admin is initialized
+    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not configured. Missing environment variables.' },
+        { status: 500 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const userId = formData.get('userId') as string;
@@ -25,7 +33,18 @@ export async function POST(req: NextRequest) {
     const fileName = `uploads/${Date.now()}_${file.name}`;
     
     // Use the Firebase Storage bucket (videoeditor-2508b)
-    const bucket = adminStorage.bucket('videoeditor-2508b.firebasestorage.app');
+    // Try default bucket first, then explicit bucket name
+    let bucket;
+    try {
+      bucket = adminStorage.bucket('videoeditor-2508b.firebasestorage.app');
+    } catch (bucketError: any) {
+      console.error('Bucket error:', bucketError);
+      return NextResponse.json(
+        { error: `Failed to access storage bucket: ${bucketError.message}` },
+        { status: 500 }
+      );
+    }
+    
     const fileRef = bucket.file(fileName);
 
     // Upload the file
