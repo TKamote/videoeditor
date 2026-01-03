@@ -53,9 +53,16 @@ function HomeContent() {
         body: JSON.stringify({ streamId }),
       });
       const data = await response.json();
-      if (data.error) {
-        setProcessingError(data.error);
-        console.error("Processing error:", data.error);
+      if (!response.ok || data.error) {
+        // Show detailed error message
+        const errorMsg = data.details 
+          ? `${data.error || 'Processing error'}: ${data.details}`
+          : data.error || 'Failed to start processing';
+        setProcessingError(errorMsg);
+        console.error("Processing error:", data);
+      } else {
+        // Success - refresh the page to show updated status
+        window.location.reload();
       }
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to start processing';
