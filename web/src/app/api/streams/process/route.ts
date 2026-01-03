@@ -84,11 +84,41 @@ export async function POST(req: NextRequest) {
 
       console.log(`Copying from Firebase: ${firebasePath} to GCS: ${gcsFileName}`);
       console.log(`GCS bucket: ${bucketName}, file path: ${gcsFileName}`);
-      console.log(`GCS file name: ${gcsFile.name}`);
       
       try {
-        await firebaseFile.copy(gcsFile);
-        console.log('File copy successful');
+        // Download from Firebase Storage and upload to GCS using streams
+        const [firebaseFileExists] = await firebaseFile.exists();
+        if (!firebaseFileExists) {
+          throw new Error(`Source file not found in Firebase Storage: ${firebasePath}`);
+        }
+
+        // Create a readable stream from Firebase Storage
+        const firebaseReadStream = firebaseFile.createReadStream();
+        
+        // Create a writable stream to GCS
+        const gcsWriteStream = gcsFile.createWriteStream({
+          metadata: {
+            contentType: 'video/mp4', // Adjust if needed
+          },
+        });
+
+        // Pipe the data from Firebase to GCS
+        await new Promise((resolve, reject) => {
+          firebaseReadStream
+            .on('error', (error) => {
+              console.error('Firebase read stream error:', error);
+              reject(new Error(`Failed to read from Firebase Storage: ${error.message}`));
+            })
+            .pipe(gcsWriteStream)
+            .on('error', (error) => {
+              console.error('GCS write stream error:', error);
+              reject(new Error(`Failed to write to GCS: ${error.message}`));
+            })
+            .on('finish', () => {
+              console.log('File copy successful via stream');
+              resolve(undefined);
+            });
+        });
       } catch (copyError: any) {
         console.error('File copy failed:', copyError);
         throw new Error(`File copy failed: ${copyError.message}`);
