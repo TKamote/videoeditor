@@ -213,9 +213,35 @@ function HomeContent() {
                         </a>
                       )}
                       {(stream.status === 'processing' || stream.status === 'analyzing') && (
-                        <div className="flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                          <span className="text-sm text-gray-500 italic">Processing...</span>
+                        <div className="flex flex-col gap-2 items-end sm:items-start">
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                            <span className="text-sm text-gray-500 italic">Processing...</span>
+                          </div>
+                          <button 
+                            onClick={async () => {
+                              if (confirm('Stop processing? The Video Intelligence operation will continue on Google\'s side, but we\'ll mark it as cancelled.')) {
+                                try {
+                                  const response = await fetch('/api/streams/cancel', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ streamId: stream.id }),
+                                  });
+                                  if (response.ok) {
+                                    window.location.reload();
+                                  } else {
+                                    alert('Failed to cancel. You can manually update Firestore if needed.');
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to cancel:', err);
+                                  alert('Failed to cancel processing.');
+                                }
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors"
+                          >
+                            Stop Processing
+                          </button>
                         </div>
                       )}
                       {stream.status === 'error' && (
