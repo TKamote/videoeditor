@@ -1,0 +1,36 @@
+{
+  "name": "obs-watcher-automation",
+  "version": "1.0.0",
+  "description": "Automated OBS recording watcher that uploads videos to Google Cloud Storage and creates Firestore entries",
+  "main": "dist/watcher.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/watcher.js",
+    "dev": "ts-node src/watcher.ts",
+    "watch": "nodemon --watch src --ext ts --exec ts-node src/watcher.ts"
+  },
+  "keywords": [
+    "obs",
+    "video",
+    "automation",
+    "gcs",
+    "firebase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google-cloud/storage": "^7.7.0",
+    "chokidar": "^3.5.3",
+    "dotenv": "^16.4.1",
+    "firebase-admin": "^12.0.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.7",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
+
