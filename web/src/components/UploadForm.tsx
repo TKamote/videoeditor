@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { db } from '@/lib/firebase';
+import { storage, db } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth';
 
@@ -22,8 +23,8 @@ export default function UploadForm() {
   const handleUpload = async () => {
     if (!file) return;
 
-    if (!db) {
-      setError('Database is not available.');
+    if (!storage || !db) {
+      setError('Firebase is not configured.');
       return;
     }
 
@@ -36,40 +37,55 @@ export default function UploadForm() {
     setError(null);
     
     try {
-      // Upload via API route to avoid CORS issues
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', user.uid);
+      // Upload directly to Firebase Storage (handles large files)
+      const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setProgress(progress);
+        },
+        (uploadError) => {
+          console.error("Upload error:", uploadError);
+          setError(`Upload failed: ${uploadError.message}`);
+          setUploading(false);
+        },
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            
+            // Save metadata to Firestore
+            if (!db) {
+              setError('Database is not available. Upload succeeded but metadata could not be saved.');
+              setUploading(false);
+              return;
+            }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
-      }
+            await addDoc(collection(db, 'streams'), {
+              fileName: file.name,
+              firebasePath: storageRef.fullPath,
+              downloadUrl: downloadURL,
+              status: 'uploaded',
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+            });
 
-      const data = await response.json();
-
-      // Save metadata to Firestore
-      await addDoc(collection(db, 'streams'), {
-        fileName: file.name,
-        firebasePath: data.firebasePath,
-        downloadUrl: data.downloadURL,
-        status: 'uploaded',
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-      });
-
-      setUploading(false);
-      setFile(null);
-      setProgress(0);
-      alert('Upload successful! Click "Process AI" to start analysis.');
+            setUploading(false);
+            setFile(null);
+            setProgress(0);
+            alert('Upload successful! Click "Process AI" to start analysis.');
+          } catch (dbError: any) {
+            console.error("Database error:", dbError);
+            setError(`Upload succeeded but failed to save metadata: ${dbError.message}`);
+            setUploading(false);
+          }
+        }
+      );
     } catch (error: any) {
-      console.error("Upload error:", error);
-      setError(`Upload failed: ${error.message}`);
+      console.error("Upload initialization error:", error);
+      setError(`Failed to start upload: ${error.message}`);
       setUploading(false);
     }
   };
