@@ -7,19 +7,28 @@ import { protos } from '@google-cloud/video-intelligence';
 // Mark as dynamic to prevent build-time analysis
 export const dynamic = 'force-dynamic';
 
-// Initialize Video Intelligence client lazily
-let videoClient: VideoIntelligenceServiceClient | null = null;
-
+// Initialize Video Intelligence client with explicit credentials
 function getVideoClient(): VideoIntelligenceServiceClient {
-  if (!videoClient) {
-    try {
-      videoClient = new VideoIntelligenceServiceClient();
-    } catch (error) {
-      console.error('Failed to initialize Video Intelligence client:', error);
-      throw new Error('Video Intelligence API client initialization failed');
-    }
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  const clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
+  const privateKey = process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error('Google Cloud credentials are missing for Video Intelligence API');
   }
-  return videoClient;
+  
+  try {
+    return new VideoIntelligenceServiceClient({
+      projectId,
+      credentials: {
+        client_email: clientEmail,
+        private_key: privateKey,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to initialize Video Intelligence client:', error);
+    throw new Error('Video Intelligence API client initialization failed');
+  }
 }
 
 export async function POST(req: NextRequest) {
